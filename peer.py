@@ -114,7 +114,7 @@ class Peer:
             peer_id = f"{self.info.peer_id}.{index}"
             source_address = data.get("address", "")
             self.info.leaves[peer_id] = source_address
-            self.inc_version()
+            self.set_version()
             self.broadcast(
                 {
                     "msg": 8,
@@ -156,8 +156,9 @@ class Peer:
     def get_data(self, data: dict) -> dict:
         """Return data."""
         key: Optional[str] = data.get("key")
+        default: Optional[str] = data.get("default")
         if key:
-            return {key: self.data.get(key), "msg": 7}
+            return {key: self.data.get(key, default), "msg": 7}
         return {"data": self.data, "msg": 7}
 
     def set_data(self, data: dict) -> None:

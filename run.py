@@ -15,15 +15,17 @@ def get_network_size(root_host: str) -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         try:
             sock.connect((root_host, 10000))
-            sock.sendall(Peer.serialize({"msg": 6, "key": "network_size"}))
+            sock.sendall(
+                Peer.serialize({"msg": 6, "key": "network_size", "default": 1})
+            )
             data = Peer.deserialize(sock.recv(2048))
             print(f"data: {data}")
             return data.get("network_size", 0) or 0
-            
+
         except ConnectionRefusedError:
             print("no root")
             return 0
-    
+
 
 @app.command()
 def add() -> None:
