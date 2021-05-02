@@ -113,16 +113,16 @@ class Peer:
             index = len(self.info.leaves)
             peer_id = f"{self.info.peer_id}.{index}"
             source_address = data.get("address", "")
-            self.info.leaves[peer_id] = source_address
             self.set_version()
             self.broadcast(
                 {
                     "msg": 8,
                     "set": {"network_size": self.data.get("network_size", 0) + 1},
                     "version": f"{self.info.version}",
-                },
-                source_address,
+                    "source": self.info.address,
+                }
             )
+            self.info.leaves[peer_id] = source_address
             return {
                 "msg": 2,
                 "id": peer_id,
@@ -138,17 +138,21 @@ class Peer:
                 ],
             }
 
-    def broadcast(self, data: dict, address: str) -> None:
+    def broadcast(self, data: dict, hub: bool = True) -> None:
         """Broadcast data."""
+        source = data.pop("source", None)
+        data["source"] = self.info.address
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             for leaf_address in self.info.leaves.values():
-                if leaf_address != address:
+                if leaf_address != source:
                     leaf_host, leaf_port = leaf_address.split(":")
                     sock.connect((leaf_host, int(leaf_port)))
                     sock.sendall(Peer.serialize(data))
-            if self.info.hub:
+            if hub and self.info.hub:
                 _, hub_address = self.info.hub.split("/")
-                if hub_address != address:
+                print(f"hub_address: {hub_address}")
+                print(f"source: {source}")
+                if hub_address != source:
                     hub_host, hub_port = hub_address.split(":")
                     sock.connect((hub_host, int(hub_port)))
                     sock.sendall(Peer.serialize(data))
@@ -184,22 +188,18 @@ class Peer:
 
     def on_sigterm(self, signum: int, frame: Any) -> None:
         """Handle sigterm"""
-        self.log.info("Received SIGTERM, raising SystemExit")
+        print("Received SIGINT, raising SystemExit")
         raise SystemExit()
 
     def on_shutdown(self) -> None:
         """Shutdown."""
-        data = {"msg": 0}
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            for leaf_address in self.info.leaves.values():
-                leaf_host, leaf_port = leaf_address.split(":")
-                sock.connect((leaf_host, int(leaf_port)))
-                sock.sendall(Peer.serialize(data))
+        data = {"msg": 0, "source": self.info.address}
+        self.broadcast(data, hub=False)
 
     def main(self) -> None:
         """The main process entry point"""
         # Install signal handler
-        signal.signal(signal.SIGTERM, self.on_sigterm)
+        signal.signal(signal.SIGINT, self.on_sigterm)
 
         try:
             self.run()
@@ -221,18 +221,19 @@ class Peer:
                     print("Connected by", addr)
                     data = Peer.deserialize(connection.recv(2048))
                     if data.get("msg") == 0:
-                        self.on_shutdown()
+                        print("Shutting down")
+                        raise SystemExit()
                     elif data.get("msg") == 1:
                         connection.sendall(Peer.serialize(self.check_join(data)))
                     elif data.get("msg") == 5:
-                        self.broadcast(data, addr)
+                        self.broadcast(data)
                     elif data.get("msg") == 6:
                         connection.sendall(Peer.serialize(self.get_data(data)))
                     elif data.get("msg") == 8:
                         response: Dict
                         if self.check_version(data.get("version", "0:0")):
                             self.set_data(data)
-                            self.broadcast(data, addr)
+                            self.broadcast(data)
                             response = {"msg": 10}
                         else:
                             response = {"msg": 9, "data": self.data}
