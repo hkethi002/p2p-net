@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "net"
+version = "0.1.0"
+description = ""
+authors = ["Harsha Kethineni <harshakethineni@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^1.8.1"
+typer = "^0.3.2"
+python-daemon = "^2.3.0"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.812"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

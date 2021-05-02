@@ -1,0 +1,53 @@
+each peer keeps a kv data store in memory, topology: star or hypercube
+
+kv store:
+	peer_type: enum: ["coordinator", "maker", "doer", "reporter"]
+	peer_id: pid? tid? our own thing?
+	jobs: map of job id to to a job
+	last_added_job: id of job added last
+	last_popped_job: id of job popped last
+	job model:
+		{"next": Optional[<job_id>] (none if last added job), "id": <job_id>, ....}
+	data_version: int, timestamp, + peer_id?
+	hub: Optional[peer_id]
+	leaves: map of peer_ids to socket address
+	
+
+
+new_node process:
+	ask root hub to join:
+		4: peer not found -> become root hub
+		3: peer is full -> recurse on leaves of root
+		2: become neighbor of root
+
+broadcast process:
+	send:
+		send_to_leaves ,  note: optional exclude leaf arg
+		send_to_hub
+	recieve:
+		if recieve from hub -> send leaves
+		if recieve from leaf -> send to hub and other leaves
+
+id -> address? concatonated id of hub ie root is 0, 0.1-5, 0.1-5.1-5
+
+messages:
+	1. ask_to_join
+		{"msg": 1, "address": "socket address"} 
+	2. join_response
+		{"msg": 2, "id": "new id"}
+		{"msg": 3, "leaves": ["{peer_id:socket", ...]}
+		Connection not accepted
+
+	4. broadcast
+		{"msg": 5, "source": "peer_id", "data": ...}
+
+	6. get_data
+		{"msg": 6}
+		{"msg": 7, "data": ././, "key": ...}|
+	8. set_data
+		{"msg": 8, "set": {key: value}, version: version}
+
+	9. not_valid set:
+		try again
+	10.
+	  valid set
